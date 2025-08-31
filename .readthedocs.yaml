@@ -1,0 +1,20 @@
+# .readthedocs.yaml
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.11"
+
+sphinx:
+  configuration: docs/conf.py
+  # builder: "dirhtml"   # optional, nicer URLs
+  # fail_on_warning: true
+
+# Install the project with your docs extra (equivalent to: pip install .[docs])
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

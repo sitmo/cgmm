@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "cgmm"
+version = "0.2.0"
+description = "Conditional Gaussian Mixture Models compatible with scikit-learn"
+authors = ["Thijs van den Berg <thijs@sitmo.com>"]
+license = "BSD-3-Clause"
+readme = "README.md"
+homepage = "https://github.com/sitmo/cgmm"
+repository = "https://github.com/sitmo/cgmm"
+keywords = ["gaussian mixture", "scikit-learn", "conditional"]
+
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+numpy = "*"
+scipy = "*"
+scikit-learn = "*"
+
+# docs-only, marked optional
+sphinx = { version = ">=7", optional = true }
+myst-nb = { version = ">=1.1", optional = true }
+furo = { version = ">=2024.8", optional = true }
+sphinx-copybutton = { version = ">=0.5.2", optional = true }
+matplotlib = { version = ">=3.8", optional = true }
+pandas = {version = "^2.3",  optional = true }
+
+[tool.poetry.extras]
+docs = ["sphinx", "myst-nb", "furo", "sphinx-copybutton", "matplotlib", "pandas"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
