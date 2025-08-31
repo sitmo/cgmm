@@ -10,24 +10,21 @@ author = "Thijs van den Berg"
 copyright = f"{datetime.now():%Y}, {author}"
 
 extensions = [
-    "myst_nb",            # executable Markdown notebooks
+    "myst_nb",  # executable Markdown notebooks
     "sphinx_copybutton",
 ]
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.ipynb': 'myst-nb',
-    '.myst': 'myst-nb',
+    ".rst": "restructuredtext",
+    ".ipynb": "myst-nb",
+    ".myst": "myst-nb",
 }
 # Execute code cells during build so plots are generated
-nb_execution_mode = "cache"   # speed up subsequent builds
+nb_execution_mode = "cache"  # speed up subsequent builds
 nb_execution_timeout = 180
 nb_execution_raise_on_error = True
 
 # MyST configuration
-myst_enable_extensions = [
-    "deflist", 
-    "colon_fence"
-]
+myst_enable_extensions = ["deflist", "colon_fence"]
 
 html_theme = "furo"
 html_title = "cgmm"

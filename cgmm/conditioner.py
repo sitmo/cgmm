@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import ArrayLike
-from scipy.linalg import cho_factor, cho_solve, cholesky, solve_triangular
+from scipy.linalg import cholesky, solve_triangular
 
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.mixture import GaussianMixture
@@ -21,7 +21,9 @@ def _as_1d(x: ArrayLike) -> Array:
     if x.ndim == 2 and x.shape[0] == 1:
         return x[0]
     if x.ndim != 1:
-        raise ValueError("Expected 1D array for a single x; use shape (n_samples, n_X) for batches.")
+        raise ValueError(
+            "Expected 1D array for a single x; use shape (n_samples, n_X) for batches."
+        )
     return x
 
 
@@ -68,12 +70,12 @@ def _log_gaussian_cholesky(x: Array, mean: Array, chol: Array) -> float:
 
 @dataclass
 class _PerComponentCache:
-    mu_X: Array          # (d_X,)
-    mu_y: Array          # (d_y,)
-    chol_SXX: Array      # (d_X, d_X) lower Cholesky of S_XX (with reg)
-    A: Array             # (d_y, d_X) = S_yX S_XX^{-1}
-    C: Array             # (d_y, d_y) = S_yy - A S_Xy
-    lognorm_const: float # -0.5 * (d_X log(2π) + log|S_XX|) cached part
+    mu_X: Array  # (d_X,)
+    mu_y: Array  # (d_y,)
+    chol_SXX: Array  # (d_X, d_X) lower Cholesky of S_XX (with reg)
+    A: Array  # (d_y, d_X) = S_yX S_XX^{-1}
+    C: Array  # (d_y, d_y) = S_yy - A S_Xy
+    lognorm_const: float  # -0.5 * (d_X log(2π) + log|S_XX|) cached part
     # For logpdf we still need the quadratic term which depends on x.
 
 
@@ -135,11 +137,17 @@ class GMMConditioner(BaseEstimator):
     def _validate_and_prepare(self):
         gmm = self.mixture_estimator
         if not isinstance(gmm, GaussianMixture):
-            raise TypeError("mixture_estimator must be a fitted sklearn.mixture.GaussianMixture instance.")
+            raise TypeError(
+                "mixture_estimator must be a fitted sklearn.mixture.GaussianMixture instance."
+            )
         if not hasattr(gmm, "means_"):
-            raise ValueError("mixture_estimator must be *fitted* (missing attributes like means_).")
+            raise ValueError(
+                "mixture_estimator must be *fitted* (missing attributes like means_)."
+            )
         if gmm.covariance_type != "full":
-            raise NotImplementedError("Only covariance_type='full' is supported currently.")
+            raise NotImplementedError(
+                "Only covariance_type='full' is supported currently."
+            )
 
         d = gmm.means_.shape[1]
         cond_idx = np.asarray(self.cond_idx, dtype=int)
@@ -160,9 +168,8 @@ class GMMConditioner(BaseEstimator):
 
         # Build per-component caches
         K = gmm.n_components
-        weights = gmm.weights_
-        means = gmm.means_             # (K, d)
-        covs = gmm.covariances_        # (K, d, d)
+        means = gmm.means_  # (K, d)
+        covs = gmm.covariances_  # (K, d, d)
 
         cache: List[_PerComponentCache] = []
         for k in range(K):
@@ -246,7 +253,9 @@ class GMMConditioner(BaseEstimator):
         if X.ndim == 1:
             X = X[None, :]
         if X.shape[1] != len(cond_idx):
-            raise ValueError(f"Expected x with shape (*, {len(cond_idx)}), got {X.shape}.")
+            raise ValueError(
+                f"Expected x with shape (*, {len(cond_idx)}), got {X.shape}."
+            )
 
         # Pre allocate arrays
         weights = gmm.weights_  # (K,)
@@ -293,7 +302,9 @@ class GMMConditioner(BaseEstimator):
             # Compute precisions_cholesky_ per component
             precisions_cholesky = np.empty_like(Sigma_y_given_x)
             for k in range(K):
-                precisions_cholesky[k] = _precision_cholesky_from_cov_full(Sigma_y_given_x[k])
+                precisions_cholesky[k] = _precision_cholesky_from_cov_full(
+                    Sigma_y_given_x[k]
+                )
             gmmy.precisions_cholesky_ = precisions_cholesky
 
             # Mark as "converged" to make gmmy.sample() etc. usable.
@@ -395,7 +406,6 @@ class ConditionalGMMRegressor(BaseEstimator, RegressorMixin):
             mixtures = [mixtures]
 
         n = len(mixtures)
-        K = self.mixture_estimator.n_components
         d_y = mixtures[0].means_.shape[1]
         out = np.empty((n, d_y))
         for i, gmmy in enumerate(mixtures):
@@ -430,8 +440,8 @@ class ConditionalGMMRegressor(BaseEstimator, RegressorMixin):
         covs: List[Array] = []
         for gmmy in mixtures:
             w = gmmy.weights_[:, None, None]  # (K,1,1)
-            mu = gmmy.means_[:, :, None]      # (K,d_y,1)
-            cov = gmmy.covariances_           # (K,d_y,d_y)
+            mu = gmmy.means_[:, :, None]  # (K,d_y,1)
+            cov = gmmy.covariances_  # (K,d_y,d_y)
 
             # Sum w_k * (Σ_k + μ_k μ_k^T)
             term = (w * (cov + mu @ np.swapaxes(mu, 1, 2))).sum(axis=0)

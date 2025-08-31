@@ -24,6 +24,14 @@ sphinx-copybutton = { version = ">=0.5.2", optional = true }
 matplotlib = { version = ">=3.8", optional = true }
 pandas = {version = "^2.3",  optional = true }
 
+# --- development tools (installed via --with dev) ---
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.7"
+bump-my-version = "^1.2.1"
+ruff = "^0.5"
+black = "^24.0"
+pytest = "^8.0"
+
 [tool.poetry.extras]
 docs = ["sphinx", "myst-nb", "furo", "sphinx-copybutton", "matplotlib", "pandas"]
 
