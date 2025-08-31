@@ -32,12 +32,6 @@ Typical applications:
 pip install cgmm
 ```
 
-For building the docs locally:
-
-```bash
-pip install cgmm[docs]
-```
-
 ---
 
 ## Quick Start
