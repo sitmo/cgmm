@@ -24,7 +24,7 @@ post_commit_hooks = []
 [[tool.bumpversion.files]]
 filename = "cgmm/__init__.py"
 search   = '^(?P<indent>\s*)__version__\s*=\s*"{current_version}"\s*$'
-replace  = '\g<indent__version__ = "{new_version}"'
+replace  = '\g<indent>__version__ = "{new_version}"'
 regex    = true
 
 [[tool.bumpversion.files]]
