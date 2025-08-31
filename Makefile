@@ -2,14 +2,17 @@
 
 # --- Version bumps (update version, commit, create tag) ---
 patch:
+    poetry run pre-commit run -a
 	poetry run bump-my-version bump patch
 	git push && git push --tags
 
 minor:
+    poetry run pre-commit run -a
 	poetry run bump-my-version bump minor
 	git push && git push --tags
 
 major:
+    poetry run pre-commit run -a
 	poetry run bump-my-version bump major
 	git push && git push --tags
 
