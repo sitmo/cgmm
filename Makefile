@@ -1,30 +1,28 @@
 .PHONY: patch minor major docs precommit
 SHELL := /bin/bash
 
-define ensure_clean_with_precommit
-	# Run pre-commit once; it may modify files and exit non-zero
-	poetry run pre-commit run -a || true
-	# If anything changed, commit the auto-fixes
-	if ! git diff --quiet; then \
-		git add -A; \
-		git commit -m "chore(pre-commit): auto-fixes"; \
-	fi
+define do_bump
+	# Capture old/new versions from pyproject via Poetry
+	OLD_VERSION=$$(poetry version -s); \
+	poetry run bump-my-version bump $(1) --commit false --tag false; \
+	NEW_VERSION=$$(poetry version -s); \
+	# Run pre-commit; it may modify files
+	poetry run pre-commit run -a || true; \
+	# Stage any auto-fixes and commit/tag
+	git add -A; \
+	git commit -m "Bump version: $$OLD_VERSION → $$NEW_VERSION"; \
+	git tag v$$NEW_VERSION; \
+	git push && git push --tags
 endef
 
 patch:
-	$(ensure_clean_with_precommit)
-	poetry run bump-my-version bump patch
-	git push && git push --tags
+	$(call do_bump,patch)
 
 minor:
-	$(ensure_clean_with_precommit)
-	poetry run bump-my-version bump minor
-	git push && git push --tags
+	$(call do_bump,minor)
 
 major:
-	$(ensure_clean_with_precommit)
-	poetry run bump-my-version bump major
-	git push && git push --tags
+	$(call do_bump,major)
 
 docs:
 	rm -rf docs/_build .jupyter_cache
