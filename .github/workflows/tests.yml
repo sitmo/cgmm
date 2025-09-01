@@ -44,5 +44,6 @@ jobs:
           disable_search: true
           slug: sitmo/cgmm
           verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
 
