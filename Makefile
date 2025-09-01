@@ -1,4 +1,4 @@
-.PHONY: patch minor major precommit docs
+.PHONY: patch minor major precommit docs test
 SHELL := /bin/bash
 
 # Run pre-commit once to apply fixes, then once to verify; abort on failure.
@@ -44,3 +44,6 @@ docs:
 	rm -rf docs/_build .jupyter_cache
 	poetry run sphinx-build -b html -E docs docs/_build/html -W --keep-going
 	@echo "Open docs/_build/html/index.html in your browser"
+
+test:
+	poetry run pytest --cov=cgmm --cov-report=term-missing

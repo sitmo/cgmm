@@ -2,7 +2,9 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/cgmm.svg)](https://pypi.org/project/cgmm/)
 [![Documentation Status](https://readthedocs.org/projects/cgmm/badge/?version=latest)](https://cgmm.readthedocs.io/en/latest/?badge=latest)
-[![CI](https://github.com/your-org/cgmm/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/cgmm/actions)
+![Tests](https://github.com/sitmo/cgmm/actions/workflows/tests.yml/badge.svg)
+[![codecov](https://codecov.io/gh/sitmo/cgmm/branch/main/graph/badge.svg)](https://codecov.io/gh/sitmo/cgmm)
+
 
 **cgmm** provides **Conditional Gaussian Mixture Models** that are fully compatible with scikit-learn.
 It lets you fit a standard `GaussianMixture` on your data, then **condition** on a subset of variables

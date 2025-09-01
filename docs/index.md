@@ -1,5 +1,12 @@
 # Conditional Gaussian Mixture Models
 
+[![CI](https://github.com/sitmo/cgmm/actions/workflows/tests.yml/badge.svg)](https://github.com/sitmo/cgmm/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/sitmo/cgmm/branch/main/graph/badge.svg)](https://codecov.io/gh/sitmo/cgmm)
+[![PyPI version](https://img.shields.io/pypi/v/cgmm.svg)](https://pypi.org/project/cgmm/)
+[![Python versions](https://img.shields.io/pypi/pyversions/cgmm.svg)](https://pypi.org/project/cgmm/)
+[![License](https://img.shields.io/pypi/l/cgmm.svg)](https://github.com/sitmo/cgmm/blob/main/LICENSE)
+
+
 **cgmm** provides **Conditional Gaussian Mixture Models** that are fully compatible with scikit-learn.
 It lets you fit a standard `GaussianMixture` on your data, then **condition** on a subset of variables
 to obtain the posterior distribution of the remaining ones.

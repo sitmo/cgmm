@@ -1,4 +1,5 @@
-from .conditioner import GMMConditioner, ConditionalGMMRegressor
+from .conditioner import GMMConditioner
+from .regressor import ConditionalGMMRegressor
 
 __all__ = [
     "GMMConditioner",

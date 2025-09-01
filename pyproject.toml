@@ -31,9 +31,17 @@ bump-my-version = "^1.2.1"
 ruff = "^0.5"
 black = "^24.0"
 pytest = "^8.0"
+pytest-cov = "^6.2.1"
+coverage = "^7.10.6"
+scikit-learn = {version = ">=1.7,<2.0", markers = "python_version >= \"3.10\""}
 
 [tool.poetry.extras]
 docs = ["sphinx", "myst-nb", "furo", "sphinx-copybutton", "matplotlib", "pandas"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q --strict-markers --disable-warnings"
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core"]
