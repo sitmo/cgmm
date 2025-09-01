@@ -42,5 +42,7 @@ jobs:
           fail_ci_if_error: true
           use_oidc: true
           disable_search: true
+          slug: sitmo/cgmm
+          verbose: true
 
 
