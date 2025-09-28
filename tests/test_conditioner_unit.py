@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from sklearn.mixture import GaussianMixture
 
-from cgmm.conditioner import GMMConditioner, _as_1d
+from cgmm.conditioner import GMMConditioner
 
 RS = 123
 
@@ -16,14 +16,6 @@ def _fit_joint_gmm(dx=2, dy=1, n=200, rs=RS, cov_type="full"):
         n_components=2, covariance_type=cov_type, random_state=rs, max_iter=50
     ).fit(Z)
     return gmm, dx, dy
-
-
-def test__as_1d_variants():
-    assert _as_1d(5.0).shape == (1,)
-    assert _as_1d(np.array([1.0, 2.0])).shape == (2,)
-    assert _as_1d(np.array([[3.0, 4.0]])).shape == (2,)
-    with pytest.raises(ValueError):
-        _as_1d(np.ones((2, 2)))  # not a single x
 
 
 def test_validate_and_prepare_errors_unfitted_and_types():

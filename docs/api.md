@@ -1,232 +1,273 @@
 # API Reference
 
-Public API of `cgmm` for conditional Gaussian mixture modeling compatible with scikit-learn.
+The `cgmm` library provides conditional Gaussian mixture models compatible with scikit-learn. These models learn joint distributions over input variables X and target variables y, then condition on X to predict y or generate samples from p(y|X).
 
----
+## Quick Start
 
-## Modules
+```python
+from cgmm import ConditionalGMMRegressor, MixtureOfExpertsRegressor, DiscriminativeConditionalGMMRegressor
+from sklearn.datasets import make_regression
 
-- cgmm.conditioner — core implementations.
-- Import shortcut: `from cgmm import GMMConditioner, ConditionalGMMRegressor`.
+# Generate sample data
+X, y = make_regression(n_samples=100, n_features=2, n_targets=1, random_state=42)
 
----
+# Fit a conditional GMM
+model = ConditionalGMMRegressor(n_components=3, random_state=42)
+model.fit(X, y)
 
-## Classes
+# Predict mean, generate samples, and calculate PDF
+y_pred = model.predict(X[:5])           # E[y|X] for each input
+y_samples = model.sample(X[:5], n_samples=3)  # Sample from p(y|X)
+y_pdf = np.exp(model.log_prob(X[:5], y_pred))  # p(y|X) density values
+```
 
-### GMMConditioner
-
-    class GMMConditioner(BaseEstimator):
-        """
-        Precompute reusable terms to condition a fitted GaussianMixture on a fixed
-        set of variables X (conditioning block). Returns a new GaussianMixture over
-        the y-block (targets).
-
-        Parameters
-        ----------
-        mixture_estimator : sklearn.mixture.GaussianMixture
-            Fitted GMM with covariance_type="full".
-        cond_idx : Sequence[int]
-            Indices of conditioning variables X in the original feature order.
-            The complement indices constitute y (targets).
-        reg_covar : float, default=1e-9
-            Diagonal regularization added to the Sigma_XX block per component.
-
-        Notes
-        -----
-        - Only covariance_type="full" is currently supported.
-        - The returned conditioned mixture is defined in the reduced y-space
-          (no singular covariances).
-        """
-
-        def __init__(
-            self,
-            mixture_estimator: GaussianMixture,
-            cond_idx: Sequence[int],
-            reg_covar: float = 1e-9
-        ): ...
-
-        def precompute(self) -> "GMMConditioner":
-            """
-            Validate inputs and compute per-component reusable matrices:
-              A_k = Sigma_yX,k * inv(Sigma_XX,k)
-              C_k = Sigma_yy,k - A_k * Sigma_Xy,k
-            Also precomputes Cholesky(Sigma_XX,k) and log-normalizers for weight updates.
-            Returns self.
-            """
-
-        def condition(self, x: ArrayLike) -> Union[GaussianMixture, list[GaussianMixture]]:
-            """
-            Condition on X=x and return a new GaussianMixture over y.
-
-            Parameters
-            ----------
-            x : array-like
-                Shape (d_X,) for a single point or (n_samples, d_X) for a batch.
-
-            Returns
-            -------
-            gmmy : GaussianMixture or list[GaussianMixture]
-                Posterior mixture(s) p(y | X=x). For a batch input, a list is returned.
-
-            Details
-            -------
-            For each component k:
-              mu_{y|x,k} = mu_y,k + A_k * (x - mu_X,k)
-              Sigma_{y|x,k} = C_k
-              w'_k(x) proportional to w_k * N(x | mu_X,k, Sigma_XX,k), normalized across k.
-
-            The returned object(s) expose:
-              - weights_ : (K,)
-              - means_ : (K, d_y)
-              - covariances_ : (K, d_y, d_y)
-              - precisions_cholesky_ : (K, d_y, d_y)
-            """
-
-Attributes (after `precompute`)
-- cond_idx: tuple[int, ...]  (conditioning indices X)
-- _target_idx: tuple[int, ...]  (target indices y)
-- _d_X: int, _d_y: int  (block sizes)
-
-Errors
-- TypeError if mixture_estimator is not a fitted GaussianMixture
-- NotImplementedError if covariance_type != "full"
-- ValueError for invalid/duplicate/out-of-range cond_idx or shape mismatch in x
-
-Complexity
-- Precompute: O(K * d_X^3) due to Cholesky per component
-- Per query: O(K * d_X^2 + K) for means/weights; covariance is reused
-
-Minimal usage
-
-    from sklearn.mixture import GaussianMixture
-    gmm = GaussianMixture(n_components=5, covariance_type="full").fit(X)
-    cond = GMMConditioner(gmm, cond_idx=[0]).precompute()
-    gmmy = cond.condition([1.0])  # mixture over remaining dimensions (y)
-
----
+## Core Classes
 
 ### ConditionalGMMRegressor
 
-    class ConditionalGMMRegressor(BaseEstimator, RegressorMixin):
-        """
-        Regressor-style interface for posterior mean and covariance under a fitted GMM.
+A regressor that learns a joint Gaussian mixture model over [X, y] and analytically conditions to produce p(y|X). This approach is computationally efficient and provides exact conditional distributions.
 
-        Computes E[y | X=x] and (optionally) Var[y | X=x] with the same conditioning
-        semantics as GMMConditioner.
+**Key Features:**
+- Analytical conditioning using matrix operations
+- Supports both single and multi-output regression
+- Compatible with scikit-learn pipelines and cross-validation
+- Provides exact conditional means, covariances, and samples
 
-        Parameters
-        ----------
-        mixture_estimator : sklearn.mixture.GaussianMixture
-            Fitted GMM with covariance_type="full".
-        cond_idx : Sequence[int]
-            Conditioning indices (X).
-        return_cov : bool, default=False
-            If True, enables predict_cov.
-        reg_covar : float, default=1e-9
-            Diagonal regularization added to Sigma_XX.
-        """
+```python
+# Basic usage
+model = ConditionalGMMRegressor(n_components=5, random_state=42)
+model.fit(X, y)
+y_pred = model.predict(X_test)  # Mean predictions
 
-        def __init__(
-            self,
-            mixture_estimator: GaussianMixture,
-            cond_idx: Sequence[int],
-            return_cov: bool = False,
-            reg_covar: float = 1e-9
-        ): ...
+# Get conditional mixture and generate samples
+gmm = model.condition(X_test)  # Returns sklearn GaussianMixture
+y_samples = model.sample(X_test, n_samples=100)  # Generate samples
+```
 
-        def fit(self, X: ArrayLike, y=None) -> "ConditionalGMMRegressor":
-            """
-            No training of the mixture occurs; this validates and prepares
-            internal caches. X is accepted for sklearn API compatibility.
-            """
+**Constructor Parameters:**
+- `n_components` (int): Number of mixture components
+- `covariance_type` (str): Type of covariance matrix ("full", "diag", "spherical")
+- `reg_covar` (float): Regularization for numerical stability
+- `random_state` (int): Random seed for reproducibility
 
-        def predict(self, X: ArrayLike) -> np.ndarray:
-            """
-            Posterior mean E[y | X=x] for each row in X.
+**Main Methods:**
 
-            Parameters
-            ----------
-            X : array-like, shape (n_samples, d_X) or (d_X,)
+- **`fit(X, y)`** → `self`: Learn the joint GMM from training data
+  - `X`: Input features of shape (n_samples, n_features)
+  - `y`: Target values of shape (n_samples, n_targets)
+  - Returns fitted model for method chaining
 
-            Returns
-            -------
-            y_mean : ndarray, shape (n_samples, d_y) or (d_y,)
-            """
+- **`predict(X)`** → `np.ndarray`: Predict conditional mean E[y|X]
+  - `X`: Input features of shape (n_samples, n_features) or (n_features,)
+  - Returns: Predicted means of shape (n_samples, n_targets) or (n_targets,)
 
-        def predict_cov(self, X: ArrayLike) -> Union[np.ndarray, list[np.ndarray]]:
-            """
-            Total posterior covariance Var[y | X=x] (mixture-of-Gaussians formula):
-              Var[y|x] = sum_k w_k * (Sigma_k + mu_k mu_k^T) - m m^T,
-            where m = sum_k w_k * mu_k.
+- **`sample(X, n_samples=1, random_state=None)`** → `np.ndarray`: Generate samples from p(y|X)
+  - `X`: Input features of shape (n_samples, n_features) or (n_features,)
+  - `n_samples`: Number of samples to generate per input
+  - Returns: Samples of shape (n_samples, n_targets) or (n_inputs, n_samples, n_targets)
 
-            Returns
-            -------
-            cov : (d_y, d_y) for a single x, or list of (d_y, d_y) per sample.
-            """
+- **`condition(X)`** → `GaussianMixture` or `List[GaussianMixture]`: Get conditional mixture as sklearn object
+  - Returns sklearn GaussianMixture with standard attributes: `weights_`, `means_`, `covariances_`
+  - Enables use of sklearn methods: `sample()`, `score_samples()`, `predict_proba()`
 
-Notes
-- Works in Pipeline, GridSearchCV, etc. (array-in -> array-out)
-- Uses GMMConditioner internally; same assumptions and safeguards
+- **`score(X, y)`** → `float`: Compute mean conditional log-likelihood
+  - `X`: Input features
+  - `y`: Target values
+  - Returns: Mean log p(y|X) across all samples
 
-Example
+- **`condition(X)`** → `GaussianMixture` or `List[GaussianMixture]`: Return scikit-learn GMM objects
+  - Enables use of standard sklearn methods like `score_samples()`, `sample()`, `predict_proba()`
 
-    from sklearn.mixture import GaussianMixture
+### MixtureOfExpertsRegressor
 
-    gmm = GaussianMixture(n_components=4, covariance_type="full").fit(X)
-    reg = ConditionalGMMRegressor(gmm, cond_idx=[0]).fit(X=np.zeros((1,1)))
-    y_mean = reg.predict([[1.0]])      # E[y | X=1]
-    y_cov  = reg.predict_cov([[1.0]])  # Var[y | X=1]
+A regressor that uses softmax gating to weight Gaussian experts with affine mean functions. Each expert learns a linear relationship between inputs and targets, with the gating network determining expert weights.
 
----
+**Key Features:**
+- Softmax gating network for expert selection
+- Linear mean functions for each expert
+- Supports different covariance types
+- Good for modeling complex, multi-modal relationships
 
-## Behaviors and conventions
+```python
+# Mixture of experts with linear mean functions
+model = MixtureOfExpertsRegressor(
+    n_components=4, 
+    covariance_type='full',
+    random_state=42
+)
+model.fit(X, y)
+y_pred = model.predict(X_test)  # Weighted combination of expert predictions
+```
 
-- Space of result: conditioned mixtures live in y-space (targets only).
-- Indexing: cond_idx references columns of the data used to fit the GMM.
-- Covariance type: only "full" supported at present.
-- Numerical stability: reg_covar adds eps * I to Sigma_XX before solves.
-- Randomness: conditioning is deterministic; sampling uses GaussianMixture.sample.
+**Constructor Parameters:**
+- `n_components` (int): Number of expert components
+- `covariance_type` (str): Covariance structure ("full", "diag", "spherical")
+- `mean_function` (str): Type of mean function ("linear", "constant")
+- `reg_covar` (float): Regularization for numerical stability
+- `gating_penalty` (float): L2 penalty on gating network weights
+- `max_iter` (int): Maximum EM iterations
+- `random_state` (int): Random seed
 
----
+**Main Methods:**
+- Same interface as `ConditionalGMMRegressor`: `fit()`, `predict()`, `sample()`, `score()`, `condition()`
 
-## Error messages (selected)
+### DiscriminativeConditionalGMMRegressor
 
-- ValueError: Expected x with shape (*, d_X)  (condition(x) shape mismatch)
-- NotImplementedError: Only covariance_type='full' is supported currently.
-- ValueError: cond_idx contains duplicates / out-of-range
+A regressor that directly optimizes conditional likelihood using a discriminative EM algorithm. This approach focuses on learning p(y|X) without modeling the full joint distribution.
 
----
+**Key Features:**
+- Discriminative training focused on conditional likelihood
+- Direct optimization of p(y|X) without joint modeling
+- Supports different covariance types
+- Good for cases where joint modeling is difficult
 
-## Typical patterns
+```python
+# Discriminative conditional GMM
+model = DiscriminativeConditionalGMMRegressor(
+    n_components=3,
+    covariance_type='full',
+    reg_covar=1e-2,
+    random_state=42
+)
+model.fit(X, y)
+y_pred = model.predict(X_test)  # Discriminatively learned predictions
+```
 
-Posterior mean curve (1D X, 1D y)
+**Constructor Parameters:**
+- `n_components` (int): Number of mixture components
+- `covariance_type` (str): Covariance structure ("full", "diag", "spherical")
+- `reg_covar` (float): Regularization for numerical stability
+- `max_iter` (int): Maximum EM iterations
+- `weight_step` (float): Step size for weight updates
+- `random_state` (int): Random seed
 
-    x_grid = np.linspace(xmin, xmax, 200)[:, None]
-    y_mean = reg.predict(x_grid).ravel()
+**Main Methods:**
+- Same interface as other regressors: `fit()`, `predict()`, `sample()`, `score()`, `condition()`
 
-Posterior mixture sampling (1D y)
+### GMMConditioner
 
-    gmms = cond.condition(x_grid)  # list of mixtures
-    samples = [g.sample(1000)[0].ravel() for g in gmms]
+A utility class for conditioning pre-fitted Gaussian mixture models. This is the core implementation used by `ConditionalGMMRegressor` for analytical conditioning.
 
-Scenario simulation with additive target (Delta)
+**Key Features:**
+- Precomputes conditioning matrices for efficiency
+- Supports batch conditioning
+- Returns scikit-learn `GaussianMixture` objects
+- Used internally by `ConditionalGMMRegressor`
 
-    def step_mixture(cond, xt, rng):
-        gmmd = cond.condition([xt])
-        # manual 1D draw:
-        k = rng.choice(gmmd.weights_.size, p=gmmd.weights_)
-        mu = gmmd.means_[k, 0]
-        sd = np.sqrt(gmmd.covariances_[k, 0, 0])
-        return float(rng.normal(mu, sd))
+```python
+from sklearn.mixture import GaussianMixture
+from cgmm import GMMConditioner
 
-    rng = np.random.default_rng(0)
-    xt = x0
-    for t in range(H):
-        d = step_mixture(cond, xt, rng)  # draw Delta
-        xt = xt + d
+# Fit a joint GMM
+gmm = GaussianMixture(n_components=3, covariance_type='full')
+gmm.fit(np.column_stack([X, y]))
 
----
+# Create conditioner for analytical conditioning
+conditioner = GMMConditioner(gmm, cond_idx=[0, 1])  # First 2 dims are X
+conditioner.precompute()
 
-## Versioning
+# Condition on specific X values
+conditioned_gmm = conditioner.condition(X_test)  # Returns GaussianMixture
+```
 
-- API stability starts at >= 0.1.0. Backwards-compatible changes bump the minor version; breaking changes bump the major version.
+**Constructor Parameters:**
+- `mixture_estimator` (GaussianMixture): Pre-fitted GMM
+- `cond_idx` (Sequence[int]): Indices of conditioning variables X
+- `reg_covar` (float): Regularization for numerical stability
+
+**Main Methods:**
+- **`precompute()`** → `self`: Precompute conditioning matrices
+- **`condition(x)`** → `GaussianMixture` or `List[GaussianMixture]`: Condition on X=x
+
+## Common Usage Patterns
+
+### Basic Regression
+
+```python
+from cgmm import ConditionalGMMRegressor
+from sklearn.model_selection import train_test_split
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# Fit model
+model = ConditionalGMMRegressor(n_components=5, random_state=42)
+model.fit(X_train, y_train)
+
+# Evaluate
+y_pred = model.predict(X_test)
+r2_score = model.score(X_test, y_test)
+```
+
+### Uncertainty Quantification
+
+```python
+# Get conditional mixture parameters using sklearn interface
+gmm = model.condition(X_test)  # Returns sklearn GaussianMixture
+weights = gmm.weights_         # (n_components,)
+means = gmm.means_             # (n_components, n_targets)
+covariances = gmm.covariances_ # (n_components, n_targets, n_targets)
+
+# Generate samples for uncertainty analysis
+samples = model.sample(X_test, n_samples=1000)
+confidence_interval = np.percentile(samples, [2.5, 97.5], axis=1)
+```
+
+### Model Comparison
+
+```python
+from cgmm import ConditionalGMMRegressor, MixtureOfExpertsRegressor, DiscriminativeConditionalGMMRegressor
+
+models = {
+    'ConditionalGMM': ConditionalGMMRegressor(n_components=3, random_state=42),
+    'MixtureOfExperts': MixtureOfExpertsRegressor(n_components=3, random_state=42),
+    'Discriminative': DiscriminativeConditionalGMMRegressor(n_components=3, random_state=42)
+}
+
+# Compare models
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    score = model.score(X_test, y_test)
+    print(f"{name}: {score:.3f}")
+```
+
+### Integration with Scikit-learn
+
+```python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+
+# Create pipeline
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('model', ConditionalGMMRegressor(random_state=42))
+])
+
+# Grid search
+param_grid = {'model__n_components': [2, 3, 5, 8]}
+grid_search = GridSearchCV(pipeline, param_grid, cv=5)
+grid_search.fit(X, y)
+```
+
+## Performance Considerations
+
+- **ConditionalGMMRegressor**: Fastest for prediction, good for most use cases
+- **MixtureOfExpertsRegressor**: Good for complex relationships, moderate speed
+- **DiscriminativeConditionalGMMRegressor**: Best when joint modeling is difficult, slower training
+
+## Compatibility
+
+All models are fully compatible with scikit-learn:
+- Support `fit()`, `predict()`, `score()` methods
+- Work with `Pipeline`, `GridSearchCV`, `cross_val_score`
+- Follow scikit-learn conventions for input/output shapes
+- Support both single and multi-output regression
+
+## Error Handling
+
+Common errors and solutions:
+- `ValueError: n_components must be positive`: Use valid number of components
+- `NotFittedError`: Call `fit()` before using other methods
+- `ValueError: Input must be 1- or 2-d`: Ensure input arrays have correct dimensions
+- `ValueError: cov must be 2 dimensional and square`: Check covariance type compatibility

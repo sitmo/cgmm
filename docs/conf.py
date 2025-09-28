@@ -20,11 +20,15 @@ source_suffix = {
 }
 # Execute code cells during build so plots are generated
 nb_execution_mode = "cache"  # speed up subsequent builds
-nb_execution_timeout = 180
+nb_execution_timeout = 600  # 10 minutes for hyperparameter optimization
 nb_execution_raise_on_error = True
 
 # MyST configuration
 myst_enable_extensions = ["deflist", "colon_fence"]
+
+# MyST-NB configuration
+nb_render_code_prompt_show = "Show code cell {type}"
+nb_render_code_prompt_hide = "Hide code cell {type}"
 
 html_theme = "furo"
 html_title = "cgmm"

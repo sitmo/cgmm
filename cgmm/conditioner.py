@@ -1,3 +1,10 @@
+# cgmm/conditioner.py
+# Conditional Gaussian Mixture Model Conditioner
+# This file implements a conditional Gaussian mixture model conditioner.
+# It is a subclass of the sklearn.base.BaseEstimator class.
+# It is used to condition a fitted Gaussian mixture model on a fixed set of variables.
+# It is used to condition a fitted Gaussian mixture model on a fixed set of variables.
+#
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,19 +19,6 @@ from sklearn.mixture import GaussianMixture
 
 
 Array = np.ndarray
-
-
-def _as_1d(x: ArrayLike) -> Array:
-    x = np.asarray(x, dtype=float)
-    if x.ndim == 0:
-        x = x[None]
-    if x.ndim == 2 and x.shape[0] == 1:
-        return x[0]
-    if x.ndim != 1:
-        raise ValueError(
-            "Expected 1D array for a single x; use shape (n_samples, n_X) for batches."
-        )
-    return x
 
 
 def _precision_cholesky_from_cov_full(cov: Array) -> Array:
@@ -51,21 +45,6 @@ def _precision_cholesky_from_cov_full(cov: Array) -> Array:
     Z = solve_triangular(L, eye, lower=True, check_finite=False)
     # Return L^{-T} = Z.T  (this is a lower-triangular factor of the precision)
     return Z.T
-
-
-def _log_gaussian_cholesky(x: Array, mean: Array, chol: Array) -> float:
-    """
-    Log N(x | mean, Sigma) given lower-triangular Cholesky factor of Sigma (chol).
-
-    Returns a scalar. No constant batching here; caller can vectorize.
-    """
-    d = mean.shape[0]
-    diff = x - mean
-    # Solve L * u = diff  -> u = L^{-1} diff
-    u = solve_triangular(chol, diff, lower=True, check_finite=False)
-    quad = np.dot(u, u)  # ||u||^2
-    logdet = 2.0 * np.sum(np.log(np.diag(chol)))
-    return -0.5 * (d * np.log(2.0 * np.pi) + logdet + quad)
 
 
 @dataclass
