@@ -125,7 +125,6 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
         self._alpha_ = np.log(self.weights_ + np.finfo(float).tiny)  # softmax logits
 
         # Run discriminative EM with parameter-delta stopping
-        # prev_ll = -np.inf
         self.converged_ = False
         for it in range(1, self.max_iter + 1):
             prev_means = self.means_.copy()
@@ -145,10 +144,6 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
             if param_delta < self.tol:
                 self.converged_ = True
                 break
-
-            # Track conditional ll for reporting/debug
-            # ll = self._mean_conditional_loglik(X, y)
-            # prev_ll = ll
 
         self.lower_bound_ = float(self._mean_conditional_loglik(X, y))
         self.n_iter_ = int(it)
@@ -190,51 +185,39 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
         for k in range(K):
             mu_x, S_xx, mu_y, S_yy = self._slice_blocks(k, Dx)
             if self.covariance_type == "full":
-                if False:
-                    S_xy = self.covariances_[k, :Dx, Dx:]  # (Dx, Dy)
-                    S_yx = S_xy.T
-                    # Σ_{y|x} = S_yy - S_yx S_xx^{-1} S_xy
-                    S_xx_inv = np.linalg.inv(S_xx)
-                    S_k = S_yy - S_yx @ S_xx_inv @ S_xy
-                    S_k = self._ensure_positive_definite(S_k)
-                    S[k] = S_k
-                    # μ_{y|x} = μ_y + S_yx S_xx^{-1} (x - μ_x)
-                    A = S_yx @ S_xx_inv
-                    diff = X - mu_x[None, :]
-                    M[:, k, :] = mu_y[None, :] + diff @ A.T
-                else:
-                    # Cross blocks
-                    S_xy = self.covariances_[k, :Dx, Dx:]  # (Dx, Dy)
-                    S_yx = S_xy.T  # (Dy, Dx)
 
-                    # Ensure Σ_xx is PD (adds tiny diag if needed)
-                    S_xx_pd = self._ensure_positive_definite(S_xx)
+                # Cross blocks
+                S_xy = self.covariances_[k, :Dx, Dx:]  # (Dx, Dy)
+                S_yx = S_xy.T  # (Dy, Dx)
 
-                    # Cholesky of Σ_xx
-                    L = np.linalg.cholesky(S_xx_pd)  # S_xx = L L^T
+                # Ensure Σ_xx is PD (adds tiny diag if needed)
+                S_xx_pd = self._ensure_positive_definite(S_xx)
 
-                    # -------- conditional covariance --------
-                    # Compute Σ_xx^{-1} Σ_xy via two triangular solves
-                    # Solve L Z = Σ_xy  -> Z
-                    Z = np.linalg.solve(L, S_xy)
-                    # Solve L^T A = Z   -> A = Σ_xx^{-1} Σ_xy   (shape Dx×Dy)
-                    A = np.linalg.solve(L.T, Z)
+                # Cholesky of Σ_xx
+                L = np.linalg.cholesky(S_xx_pd)  # S_xx = L L^T
 
-                    # Σ_{y|x} = Σ_yy − Σ_yx (Σ_xx^{-1} Σ_xy)
-                    S_k = S_yy - S_yx @ A
-                    S_k = self._ensure_positive_definite(S_k)
-                    S[k] = S_k
+                # -------- conditional covariance --------
+                # Compute Σ_xx^{-1} Σ_xy via two triangular solves
+                # Solve L Z = Σ_xy  -> Z
+                Z = np.linalg.solve(L, S_xy)
+                # Solve L^T A = Z   -> A = Σ_xx^{-1} Σ_xy   (shape Dx×Dy)
+                A = np.linalg.solve(L.T, Z)
 
-                    # -------- conditional mean --------
-                    # Need (Σ_yx Σ_xx^{-1}) (x − μ_x)
-                    # Compute B = Σ_yx Σ_xx^{-1} via solves on the transpose:
-                    # Solve L T = Σ_yx^T    -> T
-                    T = np.linalg.solve(L, S_yx.T)
-                    # Solve L^T B_T = T     -> B_T = Σ_xx^{-1} Σ_yx^T
-                    B = np.linalg.solve(L.T, T).T  # B = Σ_yx Σ_xx^{-1}  (shape Dy×Dx)
+                # Σ_{y|x} = Σ_yy − Σ_yx (Σ_xx^{-1} Σ_xy)
+                S_k = S_yy - S_yx @ A
+                S_k = self._ensure_positive_definite(S_k)
+                S[k] = S_k
 
-                    diff = X - mu_x[None, :]  # (n×Dx)
-                    M[:, k, :] = mu_y[None, :] + diff @ B.T
+                # -------- conditional mean --------
+                # Need (Σ_yx Σ_xx^{-1}) (x − μ_x)
+                # Compute B = Σ_yx Σ_xx^{-1} via solves on the transpose:
+                # Solve L T = Σ_yx^T    -> T
+                T = np.linalg.solve(L, S_yx.T)
+                # Solve L^T B_T = T     -> B_T = Σ_xx^{-1} Σ_yx^T
+                B = np.linalg.solve(L.T, T).T  # B = Σ_yx Σ_xx^{-1}  (shape Dy×Dx)
+
+                diff = X - mu_x[None, :]  # (n×Dx)
+                M[:, k, :] = mu_y[None, :] + diff @ B.T
 
             else:
                 # diag: no cross-cov; conditional mean is μ_y; cov = S_yy (as variance vector)
