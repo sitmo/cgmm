@@ -71,6 +71,7 @@ pip install cgmm
 - **Missing Data Imputation**: Fill gaps using learned conditional distributions
 - **Inverse Problems**: Solve kinematics, finance, and volatility modeling tasks
 - **Uncertainty Quantification**: Provide confidence intervals and risk measures
+- **Weather Modeling**: Analyze meteorological data with seasonal and daily patterns
 
 ## Models Available
 
@@ -118,6 +119,17 @@ If you use cgmm in your research, please cite:
 }
 ```
 
+## Examples
+
+Check out our comprehensive examples:
+
+- **Weather Analysis**: 10-year KNMI meteorological data with seasonal patterns and 2D PDF visualization
+- **2D Conditional GMM**: Basic conditional modeling with uncertainty quantification
+- **Digits Classification**: Handwritten digit recognition with multimodal distributions
+- **Iris Dataset**: Classic classification with conditional GMM
+- **Regression Models**: Comparison of different cgmm algorithms
+- **VIX Predictor**: Financial volatility modeling and forecasting
+
 ## Contributing
 
 We welcome contributions!
@@ -142,3 +154,4 @@ examples/digits_conditional_modeling
 examples/iris_conditional_gmm
 examples/regression_models_and_datasets
 examples/vix_predictor
+examples/amsterdam_weather_analysis_knmi

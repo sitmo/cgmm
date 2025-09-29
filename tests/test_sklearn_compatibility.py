@@ -603,8 +603,8 @@ class TestSampleMethodInterface:
 
             # Test single sample
             samples = model.sample(X[:1], n_samples=5)
-            # For single-target output, shape should be (n_samples,) not (n_samples, 1)
-            expected_shape = (5,) if model.n_targets_ == 1 else (5, 1)
+            # For scikit-learn compatibility, always return 2D arrays
+            expected_shape = (5, 1) if model.n_targets_ == 1 else (5, model.n_targets_)
             assert (
                 samples.shape == expected_shape
             ), f"{model.__class__.__name__}.sample() wrong shape: {samples.shape}, expected {expected_shape}"
@@ -614,8 +614,10 @@ class TestSampleMethodInterface:
 
             # Test batch
             samples_batch = model.sample(X[:3], n_samples=4)
-            # For single-target output, shape should be (n_inputs, n_samples) not (n_inputs, n_samples, 1)
-            expected_batch_shape = (3, 4) if model.n_targets_ == 1 else (3, 4, 1)
+            # For scikit-learn compatibility, always return 3D arrays for batch
+            expected_batch_shape = (
+                (3, 4, 1) if model.n_targets_ == 1 else (3, 4, model.n_targets_)
+            )
             assert (
                 samples_batch.shape == expected_batch_shape
             ), f"{model.__class__.__name__}.sample() batch wrong shape: {samples_batch.shape}, expected {expected_batch_shape}"

@@ -203,7 +203,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         Sample y|X.
         Returns:
           if X is (n,Dx): (n, n_samples, Dy)
-          if X is a single sample (Dx,): (n_samples, Dy) or (n_samples,) if Dy==1
+          if X is a single sample (Dx,): (n_samples, Dy)
         """
         check_is_fitted(self, attributes=["_params"])
         X = np.asarray(X)
@@ -242,7 +242,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
                     std = _diag_std(S[k])
                     noise = rng.normal(size=Dy) * std
                 Y[t] = M[i, k] + noise
-            return Y[:, 0] if Dy == 1 else Y
+            return Y
 
         # batch
         n = X.shape[0]
@@ -259,7 +259,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
                     std = _diag_std(S[k])
                     noise = rng.normal(size=Dy) * std
                 Y[i, t] = M[i, k] + noise
-        return Y[:, :, 0] if Dy == 1 else Y
+        return Y
 
     # ------------------------ EM internals ------------------------
 

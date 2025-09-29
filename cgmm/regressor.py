@@ -159,7 +159,7 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
         Sample y|X.
         Returns:
           if X is (n,Dx): (n, n_samples, Dy)
-          if X is a single sample (Dx,): (n_samples, Dy) or (n_samples,) if Dy==1
+          if X is a single sample (Dx,): (n_samples, Dy)
         """
         check_is_fitted(self, attributes=["_cond"])
         X = validate_data(self, X, reset=False)
@@ -186,7 +186,7 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
             new_gm.lower_bound_ = gm.lower_bound_
 
             S = new_gm.sample(n_samples=n_samples)[0]  # (n_samples, Dy)
-            return S[:, 0] if self.dy_ == 1 else S
+            return S
 
         out = []
         for g in gm:
@@ -208,7 +208,7 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
             S = new_g.sample(n_samples=n_samples)[0]
             out.append(S)
         out = np.stack(out, axis=0)  # (n, n_samples, Dy)
-        return out[:, :, 0] if self.dy_ == 1 else out
+        return out
 
     def condition(self, X):
         """

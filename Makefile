@@ -1,4 +1,4 @@
-.PHONY: patch minor major precommit docs test
+.PHONY: patch minor major precommit docs test knmi
 SHELL := /bin/bash
 
 # Run pre-commit once to apply fixes, then once to verify; abort on failure.
@@ -47,3 +47,6 @@ docs:
 
 test:
 	poetry run pytest --cov=cgmm --cov-report=term-missing
+
+knmi:
+	poetry run python tools/download_knmi_weather.py --start 2014-01-01 --end 2024-12-31 --outfile docs/examples/data/amsterdam_knmi_hourly.csv

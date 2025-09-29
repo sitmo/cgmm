@@ -472,11 +472,6 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
 
         if X.shape[0] == 1:
             samples = samples[0]
-            if self.n_targets_ == 1:
-                samples = samples[:, 0]
-        else:
-            if self.n_targets_ == 1:
-                samples = samples[:, :, 0]
         return samples
 
 

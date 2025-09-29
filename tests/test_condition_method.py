@@ -259,7 +259,8 @@ class TestConditionConsistency:
         # Both should be finite and have reasonable shapes
         assert np.all(np.isfinite(model_samples))
         assert np.all(np.isfinite(gmm_samples))
-        assert model_samples.ndim == 1
+        assert model_samples.ndim == 2  # Now returns 2D for scikit-learn compatibility
         assert gmm_samples.ndim == 2
+        assert model_samples.shape[1] == 1  # Single target
         assert gmm_samples.shape[1] == 1
-        # Note: Shapes might differ due to different implementations
+        # Note: Shapes should now match due to scikit-learn compatibility

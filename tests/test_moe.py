@@ -51,12 +51,12 @@ def test_moe_sample():
 
     # Test single sample
     samples = model.sample(X[:5], n_samples=3)
-    assert samples.shape == (5, 3)
+    assert samples.shape == (5, 3, 1)
     assert np.isfinite(samples).all()
 
     # Test single input (1D array)
     samples_single = model.sample(X[0], n_samples=5)
-    assert samples_single.shape == (5,)
+    assert samples_single.shape == (5, 1)
     assert np.isfinite(samples_single).all()
 
 

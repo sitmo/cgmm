@@ -29,5 +29,5 @@ def test_sample_shapes(RS):
     model = ConditionalGMMRegressor(n_components=3, random_state=RS)
     model.fit(X, y)
 
-    samples = model.sample(X[:10], n_samples=5)  # shape (10, 5)
-    assert samples.shape == (10, 5)
+    samples = model.sample(X[:10], n_samples=5)  # shape (10, 5, 1)
+    assert samples.shape == (10, 5, 1)
