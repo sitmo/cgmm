@@ -61,7 +61,7 @@ y_samples = model.sample(X_test, n_samples=100)  # Generate samples
   - `X`: Input features of shape (n_samples, n_features) or (n_features,)
   - Returns: Predicted means of shape (n_samples, n_targets) or (n_targets,)
 
-- **`sample(X, n_samples=1, random_state=None)`** → `np.ndarray`: Generate samples from p(y|X)
+- **`sample(X, n_samples=1)`** → `np.ndarray`: Generate samples from p(y|X)
   - `X`: Input features of shape (n_samples, n_features) or (n_features,)
   - `n_samples`: Number of samples to generate per input
   - Returns: Samples of shape (n_samples, n_targets) or (n_inputs, n_samples, n_targets)

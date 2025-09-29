@@ -367,7 +367,7 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
         X = np.asarray(X, dtype=float)
         y = np.asarray(y, dtype=float)
         if y.ndim == 1 and self.n_targets_ == 1:
-            y = y[:, 0:1]
+            y = y.reshape(-1, 1)
         if X.ndim == 1:
             X = X.reshape(1, -1)
         X = validate_data(self, X, reset=False)
@@ -448,7 +448,7 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
             return _mk(0)
         return [_mk(i) for i in range(X.shape[0])]
 
-    def sample(self, X: ArrayLike, n_samples: int = 1, random_state=None):
+    def sample(self, X: ArrayLike, n_samples: int = 1):
         check_is_fitted(self, attributes=["weights_", "means_", "covariances_"])
         X = np.asarray(X, dtype=float)
         if X.ndim == 1:
@@ -458,7 +458,8 @@ class DiscriminativeConditionalGMMRegressor(BaseConditionalMixture, ConditionalM
         params = self._compute_conditional_mixture(X)
         W, M, S = params["weights"], params["means"], params["covariances"]
 
-        rng = np.random.RandomState(random_state)
+        # Use truly random seed for independence (scikit-learn compatible)
+        rng = np.random.RandomState()
         samples = []
         for i in range(X.shape[0]):
             idx = rng.choice(self.n_components, size=n_samples, p=W[i])

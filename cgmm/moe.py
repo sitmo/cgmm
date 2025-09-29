@@ -198,7 +198,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
             out[i] = _softmax_from_log(log_terms)
         return out
 
-    def sample(self, X: ArrayLike, n_samples: int = 1, random_state=None):
+    def sample(self, X: ArrayLike, n_samples: int = 1):
         """
         Sample y|X.
         Returns:
@@ -210,7 +210,8 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         if X.ndim == 1:
             X = X.reshape(1, -1)
         X = validate_data(self, X, reset=False)
-        rng = np.random.RandomState(random_state)
+        # Use truly random seed for independence (scikit-learn compatible)
+        rng = np.random.RandomState()
 
         params = self._compute_conditional_mixture(X)
         W, M, S = params["weights"], params["means"], params["covariances"]

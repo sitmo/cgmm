@@ -20,7 +20,7 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
       - _compute_conditional_mixture(X) -> dict(weights, means, covariances)
       - score(X, y) / log_prob(X, y)
       - responsibilities(X, y=None)
-      - sample(n_samples, X=None, random_state=None)  # y|X sampling
+      - sample(X, n_samples=1)  # y|X sampling
     """
 
     def __init__(
@@ -154,7 +154,7 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
             out[i] = r / r.sum()
         return out
 
-    def sample(self, X, n_samples=1, random_state=None):
+    def sample(self, X, n_samples=1):
         """
         Sample y|X.
         Returns:
@@ -165,15 +165,47 @@ class ConditionalGMMRegressor(BaseConditionalMixture, ConditionalMixin):
         X = validate_data(self, X, reset=False)
 
         gm = self._cond.condition(X)
-        # rng_state = random_state
+
+        # Use truly random seed for independence (scikit-learn compatible)
+        rng = np.random.RandomState()
 
         if isinstance(gm, GaussianMixture):
-            S = gm.sample(n_samples=n_samples)[0]  # (n_samples, Dy)
+            # Create a new GaussianMixture with random state for independence
+            new_gm = GaussianMixture(
+                n_components=gm.n_components,
+                covariance_type=gm.covariance_type,
+                random_state=rng,
+            )
+            # Copy the fitted parameters
+            new_gm.weights_ = gm.weights_.copy()
+            new_gm.means_ = gm.means_.copy()
+            new_gm.covariances_ = gm.covariances_.copy()
+            new_gm.precisions_cholesky_ = gm.precisions_cholesky_.copy()
+            new_gm.converged_ = gm.converged_
+            new_gm.n_iter_ = gm.n_iter_
+            new_gm.lower_bound_ = gm.lower_bound_
+
+            S = new_gm.sample(n_samples=n_samples)[0]  # (n_samples, Dy)
             return S[:, 0] if self.dy_ == 1 else S
 
         out = []
         for g in gm:
-            S = g.sample(n_samples=n_samples)[0]
+            # Create a new GaussianMixture with random state for independence
+            new_g = GaussianMixture(
+                n_components=g.n_components,
+                covariance_type=g.covariance_type,
+                random_state=rng,
+            )
+            # Copy the fitted parameters
+            new_g.weights_ = g.weights_.copy()
+            new_g.means_ = g.means_.copy()
+            new_g.covariances_ = g.covariances_.copy()
+            new_g.precisions_cholesky_ = g.precisions_cholesky_.copy()
+            new_g.converged_ = g.converged_
+            new_g.n_iter_ = g.n_iter_
+            new_g.lower_bound_ = g.lower_bound_
+
+            S = new_g.sample(n_samples=n_samples)[0]
             out.append(S)
         out = np.stack(out, axis=0)  # (n, n_samples, Dy)
         return out[:, :, 0] if self.dy_ == 1 else out

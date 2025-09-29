@@ -250,7 +250,7 @@ class TestConditionConsistency:
         model.fit(X, y)
 
         # Get samples from model
-        model_samples = model.sample(X[:1], n_samples=100, random_state=42)
+        model_samples = model.sample(X[:1], n_samples=100)
 
         # Get samples from conditioned GMM
         gmm = model.condition(X[:1])
