@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cgmm"
-version = "0.3.3"
+version = "0.4.0"
 description = "Conditional Gaussian Mixture Models compatible with scikit-learn"
 authors = ["Thijs van den Berg <thijs@sitmo.com>"]
 license = "BSD-3-Clause"
