@@ -1,6 +1,6 @@
 # API Reference
 
-The `cgmm` library provides conditional Gaussian mixture models compatible with scikit-learn. These models learn joint distributions over input variables X and target variables y, then condition on X to predict y or generate samples from p(y|X).
+The `cgmm` library provides conditional (non)Gaussian mixture models compatible with scikit-learn. These models learn joint distributions over input variables X and target variables y, then condition on X to predict y or generate samples from p(y|X).
 
 ## Quick Start
 
@@ -28,6 +28,7 @@ y_pdf = np.exp(model.log_prob(X[:5], y_pred))  # p(y|X) density values
 A regressor that learns a joint Gaussian mixture model over [X, y] and analytically conditions to produce p(y|X). This approach is computationally efficient and provides exact conditional distributions.
 
 **Key Features:**
+
 - Analytical conditioning using matrix operations
 - Supports both single and multi-output regression
 - Compatible with scikit-learn pipelines and cross-validation
@@ -45,8 +46,9 @@ y_samples = model.sample(X_test, n_samples=100)  # Generate samples
 ```
 
 **Constructor Parameters:**
+
 - `n_components` (int): Number of mixture components
-- `covariance_type` (str): Type of covariance matrix ("full", "diag", "spherical")
+- `covariance_type` (str): Type of covariance matrix for the joint GMM ("full", "diag", "tied", "spherical")
 - `reg_covar` (float): Regularization for numerical stability
 - `random_state` (int): Random seed for reproducibility
 
@@ -83,6 +85,7 @@ y_samples = model.sample(X_test, n_samples=100)  # Generate samples
 A regressor that uses softmax gating to weight Gaussian experts with affine mean functions. Each expert learns a linear relationship between inputs and targets, with the gating network determining expert weights.
 
 **Key Features:**
+
 - Softmax gating network for expert selection
 - Linear mean functions for each expert
 - Supports different covariance types
@@ -100,15 +103,17 @@ y_pred = model.predict(X_test)  # Weighted combination of expert predictions
 ```
 
 **Constructor Parameters:**
+
 - `n_components` (int): Number of expert components
-- `covariance_type` (str): Covariance structure ("full", "diag", "spherical")
-- `mean_function` (str): Type of mean function ("linear", "constant")
+- `covariance_type` (str): Covariance structure ("full", "diag")
+- `mean_function` (str): Type of expert mean ("affine" - alias "linear" - or "constant")
 - `reg_covar` (float): Regularization for numerical stability
 - `gating_penalty` (float): L2 penalty on gating network weights
 - `max_iter` (int): Maximum EM iterations
 - `random_state` (int): Random seed
 
 **Main Methods:**
+
 - Same interface as `ConditionalGMMRegressor`: `fit()`, `predict()`, `sample()`, `score()`, `condition()`
 
 ### DiscriminativeConditionalGMMRegressor
@@ -116,6 +121,7 @@ y_pred = model.predict(X_test)  # Weighted combination of expert predictions
 A regressor that directly optimizes conditional likelihood using a discriminative EM algorithm. This approach focuses on learning p(y|X) without modeling the full joint distribution.
 
 **Key Features:**
+
 - Discriminative training focused on conditional likelihood
 - Direct optimization of p(y|X) without joint modeling
 - Supports different covariance types
@@ -134,14 +140,16 @@ y_pred = model.predict(X_test)  # Discriminatively learned predictions
 ```
 
 **Constructor Parameters:**
+
 - `n_components` (int): Number of mixture components
-- `covariance_type` (str): Covariance structure ("full", "diag", "spherical")
+- `covariance_type` (str): Covariance structure ("full", "diag")
 - `reg_covar` (float): Regularization for numerical stability
 - `max_iter` (int): Maximum EM iterations
 - `weight_step` (float): Step size for weight updates
 - `random_state` (int): Random seed
 
 **Main Methods:**
+
 - Same interface as other regressors: `fit()`, `predict()`, `sample()`, `score()`, `condition()`
 
 ### GMMConditioner
@@ -149,6 +157,7 @@ y_pred = model.predict(X_test)  # Discriminatively learned predictions
 A utility class for conditioning pre-fitted Gaussian mixture models. This is the core implementation used by `ConditionalGMMRegressor` for analytical conditioning.
 
 **Key Features:**
+
 - Precomputes conditioning matrices for efficiency
 - Supports batch conditioning
 - Returns scikit-learn `GaussianMixture` objects
@@ -171,11 +180,13 @@ conditioned_gmm = conditioner.condition(X_test)  # Returns GaussianMixture
 ```
 
 **Constructor Parameters:**
+
 - `mixture_estimator` (GaussianMixture): Pre-fitted GMM
 - `cond_idx` (Sequence[int]): Indices of conditioning variables X
 - `reg_covar` (float): Regularization for numerical stability
 
 **Main Methods:**
+
 - **`precompute()`** → `self`: Precompute conditioning matrices
 - **`condition(x)`** → `GaussianMixture` or `List[GaussianMixture]`: Condition on X=x
 
@@ -267,6 +278,7 @@ All models are fully compatible with scikit-learn:
 ## Error Handling
 
 Common errors and solutions:
+
 - `ValueError: n_components must be positive`: Use valid number of components
 - `NotFittedError`: Call `fit()` before using other methods
 - `ValueError: Input must be 1- or 2-d`: Ensure input arrays have correct dimensions

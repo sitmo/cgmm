@@ -14,8 +14,26 @@ from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
 from .base import BaseConditionalMixture, ConditionalMixin, _log_gaussian_full
+from .distributions import MultivariateStudentT
+from .container import MixtureDistribution
+from .student_t import _solve_dof
+from scipy.special import digamma, gammaln
 
 Array = np.ndarray
+
+
+def _log_student_t_full(x: "Array", mean: "Array", L: "Array", df: float) -> float:
+    """log t_df(x | mean, scale) where L is the lower Cholesky of the scale matrix."""
+    p = mean.shape[0]
+    u = solve_triangular(L, x - mean, lower=True, check_finite=False)
+    maha = float(np.dot(u, u))
+    logdet = 2.0 * float(np.sum(np.log(np.diag(L))))
+    log_norm = (
+        gammaln(0.5 * (df + p))
+        - gammaln(0.5 * df)
+        - 0.5 * (p * np.log(df * np.pi) + logdet)
+    )
+    return log_norm - 0.5 * (df + p) * np.log1p(maha / df)
 
 
 @dataclass
@@ -26,6 +44,7 @@ class _Params:
     W: Array  # gating weights ((K-1), Dx) for baseline softmax
     c: Array  # gating intercepts ((K-1),)
     chol: Optional[Array] = None  # (K, Dy, Dy) cholesky of cov (kept for speed)
+    dofs: Optional[Array] = None  # (K,) per-expert degrees of freedom (Student-t only)
 
 
 class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
@@ -51,6 +70,8 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         covariance_type: str = "full",
         shared_covariance: bool = False,
         mean_function: str = "affine",
+        expert: str = "gaussian",
+        dof="free",
         reg_covar: float = 1e-6,
         gating_penalty: float = 1e-2,
         gating_max_iter: int = 50,
@@ -73,6 +94,8 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         self.covariance_type = covariance_type
         self.shared_covariance = bool(shared_covariance)
         self.mean_function = mean_function
+        self.expert = expert
+        self.dof = dof
         self.reg_covar = float(reg_covar)
         self.gating_penalty = float(gating_penalty)
         self.gating_max_iter = int(gating_max_iter)
@@ -89,7 +112,30 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
 
     # ------------------------ public API ------------------------
 
+    def _mean_is_affine(self) -> bool:
+        """Whether the expert mean is affine. "linear" is accepted as an alias
+        for "affine"; "constant" means intercept-only experts."""
+        return self.mean_function in ("affine", "linear")
+
+    def _is_t(self) -> bool:
+        """Whether the experts are Student-t (else Gaussian)."""
+        return self.expert == "student_t"
+
     def fit(self, X: ArrayLike, y: ArrayLike):
+        if self.expert not in ("gaussian", "student_t"):
+            raise ValueError(
+                f"expert must be 'gaussian' or 'student_t', got {self.expert!r}."
+            )
+        if self._is_t() and (self.covariance_type != "full" or self.shared_covariance):
+            raise NotImplementedError(
+                "expert='student_t' currently supports only covariance_type='full' "
+                "with shared_covariance=False."
+            )
+        if self.mean_function not in ("affine", "linear", "constant"):
+            raise ValueError(
+                "mean_function must be 'affine' (alias 'linear') or 'constant', "
+                f"got {self.mean_function!r}."
+            )
         X, y = validate_data(
             self,
             X,
@@ -115,13 +161,16 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
 
         rng = np.random.RandomState(self.random_state)
 
+        best_lls: list = []
         for init_try in range(self.n_init):
             params = self._init_params(X, y, rng)
             prev_lb = -np.inf
+            lls: list = []
 
             for it in range(1, self.max_iter + 1):
                 # E: responsibilities gamma (n, K), and expected stats
                 gamma, ll = self._e_step(X, y, params)
+                lls.append(ll)
 
                 # M: update experts (A,b,Sigma) and gating (W,c)
                 params = self._m_step(X, y, gamma, params)
@@ -140,11 +189,13 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
                 best_ll = prev_lb
                 best_params = params
                 best_iters = it
+                best_lls = lls
 
         # Store best
         assert best_params is not None
         self._params = best_params
         self.lower_bound_ = float(best_ll)
+        self.lower_bounds_ = best_lls
         self.n_iter_ = int(best_iters)
         self.converged_ = True
         return self
@@ -161,7 +212,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         W = self._gating_softmax_baseline(X, P.W, P.c)
 
         # Expert means per sample
-        if self.mean_function == "affine":
+        if self._mean_is_affine():
             # (n, K, Dy) = einsum over (K,Dy,Dx) @ (n,Dx)
             M = np.einsum("kij,nj->nki", P.A, X) + P.b[None, :, :]
         else:  # 'constant'
@@ -172,7 +223,52 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         if self.shared_covariance and cov.shape[0] == 1:
             cov = np.broadcast_to(cov, (K,) + cov.shape[1:])
 
+        if self._is_t():
+            # Report the actual covariance nu/(nu-2)*scale for predict/predict_cov
+            # (defined only for nu > 2; mean predictions are unaffected).
+            nu = P.dofs
+            factor = np.where(nu > 2.0, nu / np.maximum(nu - 2.0, 1e-12), np.nan)
+            cov = cov * factor[:, None, None]
+
         return {"weights": W, "means": M, "covariances": cov}
+
+    def _expert_means(self, X: Array) -> Array:
+        """Per-sample expert means mu_k(x), shape (n, K, Dy)."""
+        P = self._params
+        n = X.shape[0]
+        if self._mean_is_affine():
+            return np.einsum("kij,nj->nki", P.A, X) + P.b[None, :, :]
+        return np.broadcast_to(P.b[None, :, :], (n, self.n_components, self.n_targets_))
+
+    def log_prob(self, X: ArrayLike, y: ArrayLike) -> np.ndarray:
+        """Conditional log-density log p(y | X).
+
+        For Gaussian experts this uses the base (Gaussian-mixture) implementation;
+        for Student-t experts it evaluates the actual t-mixture density.
+        """
+        if not self._is_t():
+            return super().log_prob(X, y)
+        check_is_fitted(self, attributes=["_params", "n_features_in_", "n_targets_"])
+        Xv = validate_data(self, X, reset=False)
+        y = np.asarray(y, dtype=float)
+        if y.ndim == 1 and self.n_targets_ == 1:
+            y = y[:, None]
+        P = self._params
+        K = self.n_components
+        log_pi = self._gating_logits_baseline(Xv, P.W, P.c)
+        log_pi = log_pi - logsumexp(log_pi, axis=1, keepdims=True)
+        M = self._expert_means(Xv)
+        out = np.empty(Xv.shape[0])
+        for i in range(Xv.shape[0]):
+            terms = np.array(
+                [
+                    log_pi[i, k]
+                    + _log_student_t_full(y[i], M[i, k], P.chol[k], P.dofs[k])
+                    for k in range(K)
+                ]
+            )
+            out[i] = logsumexp(terms)
+        return out
 
     def responsibilities(self, X: ArrayLike, y: Optional[ArrayLike] = None) -> Array:
         params = self._compute_conditional_mixture(X)
@@ -183,6 +279,20 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         if y.ndim == 1 and self.n_targets_ == 1:
             y = y[:, None]
         n, K = W.shape
+
+        if self._is_t():
+            P = self._params
+            out = np.empty_like(W)
+            for i in range(n):
+                log_terms = np.array(
+                    [
+                        np.log(W[i, k] + 1e-300)
+                        + _log_student_t_full(y[i], M[i, k], P.chol[k], P.dofs[k])
+                        for k in range(K)
+                    ]
+                )
+                out[i] = _softmax_from_log(log_terms)
+            return out
 
         if S.ndim == 4:  # shouldn't happen here, but keep robust
             S = S[0]
@@ -212,6 +322,9 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         X = validate_data(self, X, reset=False)
         # Use truly random seed for independence (scikit-learn compatible)
         rng = np.random.RandomState()
+
+        if self._is_t():
+            return self._sample_t(X, n_samples, rng)
 
         params = self._compute_conditional_mixture(X)
         W, M, S = params["weights"], params["means"], params["covariances"]
@@ -261,7 +374,37 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
                 Y[i, t] = M[i, k] + noise
         return Y
 
+    def _sample_t(self, X: Array, n_samples: int, rng) -> Array:
+        """Sample y | X for Student-t experts."""
+        P = self._params
+        K = self.n_components
+        Dy = self.n_targets_
+        W = self._gating_softmax_baseline(X, P.W, P.c)
+        M = self._expert_means(X)
+
+        def _one(i):
+            comp = rng.choice(K, size=n_samples, p=W[i])
+            Y = np.empty((n_samples, Dy))
+            for t in range(n_samples):
+                k = comp[t]
+                Y[t] = MultivariateStudentT(M[i, k], P.cov[k], P.dofs[k]).rvs(
+                    size=1, random_state=rng
+                )[0]
+            return Y
+
+        if X.shape[0] == 1:
+            return _one(0)
+        return np.stack([_one(i) for i in range(X.shape[0])], axis=0)
+
     # ------------------------ EM internals ------------------------
+
+    def _init_dofs(self) -> Optional[Array]:
+        if not self._is_t():
+            return None
+        K = self.n_components
+        if isinstance(self.dof, str):
+            return np.full(K, 20.0)  # start near-Gaussian
+        return np.full(K, float(self.dof))
 
     def _init_params(self, X: Array, y: Array, rng: np.random.RandomState) -> _Params:
         n, Dx = X.shape
@@ -309,7 +452,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         c = np.zeros(K - 1)
 
         chol = _chol_from_cov(cov, self.covariance_type)
-        return _Params(A=A, b=b, cov=cov, W=W, c=c, chol=chol)
+        return _Params(A=A, b=b, cov=cov, W=W, c=c, chol=chol, dofs=self._init_dofs())
 
     def _e_step(self, X: Array, y: Array, P: _Params) -> Tuple[Array, float]:
         n, Dx = X.shape
@@ -321,7 +464,7 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         log_pi = log_pi - logsumexp(log_pi, axis=1, keepdims=True)
 
         # mu_k(x): (n,K,Dy)
-        if self.mean_function == "affine":
+        if self._mean_is_affine():
             M = np.einsum("kij,nj->nki", P.A, X) + P.b[None, :, :]
         else:
             M = np.broadcast_to(P.b[None, :, :], (n, K, Dy))
@@ -335,7 +478,10 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
                 yi = y[i]
                 for k in range(K):
                     L = P.chol[0] if self.shared_covariance else P.chol[k]
-                    logN[i, k] = _log_gaussian_full(yi, M[i, k], L @ L.T)
+                    if self._is_t():
+                        logN[i, k] = _log_student_t_full(yi, M[i, k], L, P.dofs[k])
+                    else:
+                        logN[i, k] = _log_gaussian_full(yi, M[i, k], L @ L.T)
         else:
             for i in range(n):
                 yi = y[i]
@@ -354,27 +500,78 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         Dy = y.shape[1]
         K = self.n_components
 
-        # ---- Experts: weighted least squares for A,b; weighted covariances
-        if self.mean_function == "affine":
+        # Student-t experts: compute the latent-scale weights u_ik (and E[log u])
+        # at the CURRENT parameters before the M-step updates (proper EM).
+        if self._is_t():
+            M_old = (
+                np.einsum("kij,nj->nki", P.A, X) + P.b[None, :, :]
+                if self._mean_is_affine()
+                else np.broadcast_to(P.b[None, :, :], (n, K, Dy))
+            )
+            delta = np.empty((n, K))
+            for k in range(K):
+                R = (y - M_old[:, k, :]).T  # (Dy, n)
+                sol = solve_triangular(P.chol[k], R, lower=True, check_finite=False)
+                delta[:, k] = np.sum(sol * sol, axis=0)
+            nu = P.dofs
+            u = (nu[None, :] + Dy) / (nu[None, :] + delta)  # E[1/W], (n, K)
+            e_log_u = digamma(0.5 * (nu[None, :] + Dy)) - np.log(
+                0.5 * (nu[None, :] + delta)
+            )
+            wexp = gamma * u  # IRLS weights for mean / scale
+        else:
+            wexp = gamma
+
+        # ---- Experts: weighted least squares for A,b (weights wexp) ----
+        if self._mean_is_affine():
             XA = np.hstack([X, np.ones((n, 1))])  # (n, Dx+1)
             for k in range(K):
-                w = gamma[:, k]
-                Ak, bk = _weighted_linear_multiout(XA, y, w, Dx, Dy, reg=0.0)
+                Ak, bk = _weighted_linear_multiout(XA, y, wexp[:, k], Dx, Dy, reg=0.0)
                 if P.A is None:
                     P.A = np.zeros((K, Dy, Dx))
                 P.A[k] = Ak
                 P.b[k] = bk
         else:
             for k in range(K):
-                wk = gamma[:, k]
+                wk = wexp[:, k]
                 s = wk.sum() + 1e-12
                 P.b[k] = (wk[:, None] * y).sum(axis=0) / s
 
         # Residuals and covariance
-        if self.mean_function == "affine":
+        if self._mean_is_affine():
             M = np.einsum("kij,nj->nki", P.A, X) + P.b[None, :, :]
         else:
             M = np.broadcast_to(P.b[None, :, :], (n, K, Dy))
+
+        if self._is_t():
+            # Scale update: sum_i gamma_ik u_ik R R^T / sum_i gamma_ik  (full cov).
+            cov = np.zeros((K, Dy, Dy))
+            for k in range(K):
+                R = y - M[:, k, :]
+                nk = gamma[:, k].sum() + 1e-12
+                Sk = (wexp[:, k][:, None] * R).T @ R / nk
+                Sk.flat[:: Dy + 1] += self.reg_covar
+                cov[k] = Sk
+            P.cov = cov
+            P.chol = _chol_from_cov(P.cov, "full")
+            # Degrees-of-freedom CM-step (uses old-parameter u / e_log_u).
+            if not isinstance(self.dof, str):
+                P.dofs = np.full(K, float(self.dof))
+            elif self.dof == "shared":
+                const = 1.0 + float((gamma * (e_log_u - u)).sum()) / gamma.sum()
+                P.dofs = np.full(K, _solve_dof(const))
+            else:  # "free"
+                dofs = np.empty(K)
+                for k in range(K):
+                    nk = gamma[:, k].sum() + 1e-12
+                    const = (
+                        1.0
+                        + float((gamma[:, k] * (e_log_u[:, k] - u[:, k])).sum()) / nk
+                    )
+                    dofs[k] = _solve_dof(const)
+                P.dofs = dofs
+            # gating below
+            return self._update_gating(X, gamma, P)
 
         if self.shared_covariance:
             S = np.zeros((Dy, Dy))
@@ -401,8 +598,10 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
             P.cov = cov
 
         P.chol = _chol_from_cov(P.cov, self.covariance_type)
+        return self._update_gating(X, gamma, P)
 
-        # ---- Gating: weighted multinomial logistic regression with soft labels gamma
+    def _update_gating(self, X: Array, gamma: Array, P: _Params) -> _Params:
+        # Weighted multinomial logistic regression with soft labels gamma.
         W_new, c_new = _fit_softmax_gating_baseline(
             X,
             gamma,
@@ -453,6 +652,23 @@ class MixtureOfExpertsRegressor(BaseConditionalMixture, ConditionalMixin):
         if X.ndim == 1:
             X = X.reshape(1, -1)
         X = validate_data(self, X, reset=False)
+
+        if self._is_t():
+            P = self._params
+            K = self.n_components
+            W = self._gating_softmax_baseline(X, P.W, P.c)
+            M = self._expert_means(X)
+            mixtures = [
+                MixtureDistribution(
+                    W[i],
+                    [
+                        MultivariateStudentT(M[i, k], P.cov[k], P.dofs[k])
+                        for k in range(K)
+                    ],
+                )
+                for i in range(X.shape[0])
+            ]
+            return mixtures[0] if len(mixtures) == 1 else mixtures
 
         # Get mixture parameters
         params = self._compute_conditional_mixture(X)

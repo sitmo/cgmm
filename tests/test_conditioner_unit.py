@@ -27,13 +27,11 @@ def test_validate_and_prepare_errors_unfitted_and_types():
         GMMConditioner(
             mixture_estimator=GaussianMixture(n_components=1), cond_idx=[0]
         ).precompute()
-    # non-full covariance
-    gmm, dx, dy = _fit_joint_gmm(dx=2, dy=1, cov_type="full")
-    gmm_diag, *_ = _fit_joint_gmm(
-        dx=2, dy=1, cov_type="diag"
-    )  # fitted but not supported
-    with pytest.raises(NotImplementedError):
-        GMMConditioner(mixture_estimator=gmm_diag, cond_idx=[0, 1]).precompute()
+    # non-full covariance is now supported (expanded to full internally)
+    gmm_diag, *_ = _fit_joint_gmm(dx=2, dy=1, cov_type="diag")
+    cond = GMMConditioner(mixture_estimator=gmm_diag, cond_idx=[0, 1]).precompute()
+    out = cond.condition(np.array([0.1, 0.2]))
+    assert isinstance(out, GaussianMixture)
 
 
 def test_validate_and_prepare_errors_indices():

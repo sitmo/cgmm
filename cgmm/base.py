@@ -133,6 +133,28 @@ class BaseConditionalMixture(RegressorMixin, BaseEstimator, ABC):
 
         return out[0] if len(out) == 1 else tuple(out)
 
+    def predict_cov(self, X: ArrayLike) -> np.ndarray:
+        """
+        Predictive covariance Var[y | X] of the conditional mixture.
+
+        Unlike ``predict(X, return_cov=True)`` (which collapses the covariance to
+        a 1-D variance vector for single-output targets), this always returns the
+        full covariance matrices.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features) or (n_features,)
+
+        Returns
+        -------
+        cov : np.ndarray of shape (n_samples, n_targets, n_targets)
+            One covariance matrix per input row.
+        """
+        check_is_fitted(self, attributes=["n_features_in_", "n_targets_"])
+        params = self._compute_conditional_mixture(X)
+        W, M, S = params["weights"], params["means"], params["covariances"]
+        return self._mixture_covariance_from_params(W, M, S)
+
     def score(self, X: ArrayLike, y: ArrayLike) -> float:
         """Mean conditional log-likelihood: np.mean(log p(y | X))."""
         ll = self.log_prob(X, y)

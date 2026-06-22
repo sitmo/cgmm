@@ -8,7 +8,9 @@ exclude_lines =
     pragma: no cover
     if __name__ == .__main__.:
     @overload
+    @abstractmethod
+    ^\s*\.\.\.\s*$
 show_missing = true
 precision = 2
-fail_under = 85
+fail_under = 95
 

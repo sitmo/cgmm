@@ -20,8 +20,8 @@ Typical applications:
 
 ## Features
 
-- `GMMConditioner` — take a fitted `GaussianMixture`, choose conditioning indices, and get a new mixture over the target block.
-- `ConditionalGMMRegressor` — sklearn-style regressor wrapper, exposes `.predict` and `.predict_cov`.
+- `GMMConditioner` - take a fitted `GaussianMixture`, choose conditioning indices, and get a new mixture over the target block.
+- `ConditionalGMMRegressor` - sklearn-style regressor wrapper, exposes `.predict` and `.predict_cov`.
 - Compatible with scikit-learn pipelines & tools.
 - Support for multi-modal posteriors (mixtures, not just means).
 - Well-tested, BSD-3 licensed.
@@ -43,22 +43,22 @@ import numpy as np
 from sklearn.mixture import GaussianMixture
 from cgmm import GMMConditioner, ConditionalGMMRegressor
 
-# Example data
+# Example data: 3 correlated features
 rng = np.random.default_rng(0)
 X = rng.normal(size=(1000, 3))
 
-# Fit a scikit-learn GMM on all features
+# --- Low-level: condition a fitted scikit-learn GaussianMixture ---
 gmm = GaussianMixture(n_components=3, covariance_type="full", random_state=0).fit(X)
 
-# Condition on the first coordinate (X), predict the rest (y)
+# Condition on the first coordinate; get a mixture over the remaining two
 cond = GMMConditioner(gmm, cond_idx=[0]).precompute()
 gmmy = cond.condition([0.5])        # returns a GaussianMixture over y
+samples = gmmy.sample(5)[0]         # sample from p(y | X0=0.5)
 
-samples = gmmy.sample(5)[0]         # sample from p(y | X=0.5)
-
-# Regressor interface for posterior mean
-reg = ConditionalGMMRegressor(gmm, cond_idx=[0]).fit(X=np.zeros((1, 1)))
-y_mean = reg.predict([[0.5]])       # E[y | X=0.5]
+# --- Regressor: learns its own joint GMM over [features, targets] ---
+feats, target = X[:, :1], X[:, 1:]  # predict dims 1,2 from dim 0
+reg = ConditionalGMMRegressor(n_components=3, random_state=0).fit(feats, target)
+y_mean = reg.predict([[0.5]])       # E[y | X0=0.5]
 ```
 
 ---

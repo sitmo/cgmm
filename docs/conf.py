@@ -23,8 +23,20 @@ nb_execution_mode = "cache"  # speed up subsequent builds
 nb_execution_timeout = 600  # 10 minutes for hyperparameter optimization
 nb_execution_raise_on_error = True
 
+# Keep punctuation literal: do not auto-convert -- / --- / ... or straight quotes
+# into en/em dashes, ellipses, or curly quotes.
+smartquotes = False
+
+# Files that are not standalone documentation pages (avoids "not in any toctree"
+# warnings under -W): the internal design note and notebook helpers.
+exclude_patterns = [
+    "_build",
+    "design/**",
+    "**/gallery_images/**",
+]
+
 # MyST configuration
-myst_enable_extensions = ["deflist", "colon_fence"]
+myst_enable_extensions = ["deflist", "colon_fence", "dollarmath", "amsmath"]
 
 # MyST-NB configuration
 nb_render_code_prompt_show = "Show code cell {type}"

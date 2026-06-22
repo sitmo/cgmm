@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/pypi/l/cgmm.svg)](https://github.com/sitmo/cgmm/blob/main/LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sitmo.github.io/cgmm/)
 
-**cgmm** is a Python library for **Conditional Gaussian Mixture Models** that seamlessly integrates with scikit-learn. It enables you to fit a joint Gaussian mixture on your data and then condition on a subset of variables to obtain the posterior distribution of the remaining ones.
+**cgmm** is a Python library for **Conditional Gaussian Mixture Models** that seamlessly integrates with scikit-learn. It enables you to fit a joint Gaussian (and non-Gaussian) mixture on your data and then condition on a subset of variables to obtain the posterior distribution of the remaining ones.
 
 
 ## Install
@@ -18,7 +18,7 @@ pip install cgmm
 
 ## Requirements
 
-- Python 3.9–3.12
+- Python 3.9-3.12
 - NumPy, SciPy, scikit‑learn (installed automatically)
 - For the example plots: Matplotlib
 
@@ -42,19 +42,19 @@ model.fit(X, y)
 # Make predictions with uncertainty
 X_new = np.array([[1.0, 0.5]])
 y_pred = model.predict(X_new)  # Mean prediction
-y_cov = model.predict_cov(X_new)  # Covariance matrix
+y_cov = model.predict_cov(X_new)  # Predictive covariance, shape (n, Dy, Dy)
 
 print(f"Prediction: {y_pred[0]:.3f}")
-print(f"Uncertainty: {np.sqrt(y_cov[0, 0]):.3f}")
+print(f"Uncertainty: {np.sqrt(y_cov[0, 0, 0]):.3f}")
 ```
 
 ## Key Features
 
-- **🔗 Scikit-learn Compatible**: Drop-in replacement for regression tasks
-- **📊 Multimodal Predictions**: Capture complex, multi-peaked distributions
-- **⚡ Multiple Algorithms**: Conditional GMM, Mixture of Experts, and Discriminative approaches
-- **🎯 Uncertainty Quantification**: Full covariance matrices, not just point estimates
-- **🔧 Production Ready**: Well-tested, documented, and actively maintained
+- **Scikit-learn Compatible**: Drop-in replacement for regression tasks
+- **Multimodal Predictions**: Capture complex, multi-peaked distributions
+- **Multiple Algorithms**: Conditional GMM, Mixture of Experts, and Discriminative approaches
+- **Uncertainty Quantification**: Full covariance matrices, not just point estimates
+- **Production Ready**: Well-tested, documented, and actively maintained
 
 ## Installation
 
@@ -76,9 +76,14 @@ pip install cgmm
 ## Models Available
 
 - **`ConditionalGMMRegressor`**: Joint GMM with analytical conditioning
-- **`MixtureOfExpertsRegressor`**: Softmax-gated experts with linear mean functions  
+- **`ConditionalStudentTRegressor`**: Robust heavy-tailed conditional mixture (joint Student-t + conditioning)
+- **`ConditionalGHRegressor`**: Heavy-tailed + skewed conditional mixture (joint Generalized Hyperbolic)
+- **`ConditionalMixtureRegressor`**: Family-parameterized base (`family="gaussian"` / `"student_t"` / `"gh"`)
+- **`MixtureOfExpertsRegressor`**: Softmax-gated experts with linear mean functions (`expert="gaussian"` / `"student_t"`)
 - **`DiscriminativeConditionalGMMRegressor`**: Direct conditional likelihood optimization
-- **`GMMConditioner`**: Low-level API for custom conditioning workflows
+- **`GMMConditioner`** / **`MixtureConditioner`**: Low-level API for custom conditioning workflows
+
+See [Distributions & Conditioning](conventions.md) for the equations and algorithms.
 
 ## Why cgmm?
 
@@ -115,7 +120,7 @@ If you use cgmm in your research, please cite:
   author={van den Berg, Thijs},
   year={2024},
   url={https://github.com/sitmo/cgmm},
-  version={0.3.2}
+  version={0.5.0}
 }
 ```
 
@@ -123,6 +128,7 @@ If you use cgmm in your research, please cite:
 
 Check out our comprehensive examples:
 
+- **Heavy-tailed & skewed regression**: compare the Gaussian, Student-t, and Generalized Hyperbolic conditional regressors on heavy-tailed, skewed noise
 - **Weather Analysis**: 10-year KNMI meteorological data with seasonal patterns and 2D PDF visualization
 - **2D Conditional GMM**: Basic conditional modeling with uncertainty quantification
 - **Digits Classification**: Handwritten digit recognition with multimodal distributions
@@ -149,6 +155,8 @@ BSD 3-Clause License - see [LICENSE](https://github.com/sitmo/cgmm/blob/main/LIC
 :hidden:
 
 api
+conventions
+examples/heavy_tailed_regression
 examples/conditional_2d_gmm
 examples/digits_conditional_modeling
 examples/iris_conditional_gmm
