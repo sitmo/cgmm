@@ -11,10 +11,10 @@ keywords = ["gaussian mixture", "scikit-learn", "conditional"]
 
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.15"
 numpy = "*"
 scipy = "*"
-scikit-learn = "*"
+scikit-learn = ">=1.7,<2.0"
 
 # docs-only, marked optional
 sphinx = { version = ">=7", optional = true }
@@ -33,7 +33,6 @@ black = "^24.0"
 pytest = "^8.0"
 pytest-cov = "^6.2.1"
 coverage = "^7.10.6"
-scikit-learn = {version = ">=1.7,<2.0", markers = "python_version >= \"3.10\""}
 
 [tool.poetry.extras]
 docs = ["sphinx", "myst-nb", "furo", "sphinx-copybutton", "matplotlib", "pandas"]

@@ -5,7 +5,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/cgmm.svg)](https://pypi.org/project/cgmm/)
 [![Python versions](https://img.shields.io/pypi/pyversions/cgmm.svg)](https://pypi.org/project/cgmm/)
 [![License](https://img.shields.io/pypi/l/cgmm.svg)](https://github.com/sitmo/cgmm/blob/main/LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://sitmo.github.io/cgmm/)
+[![Documentation Status](https://readthedocs.org/projects/cgmm/badge/?version=latest)](https://cgmm.readthedocs.io/en/latest/?badge=latest)
 
 **cgmm** is a Python library for **Conditional Gaussian Mixture Models** that seamlessly integrates with scikit-learn. It enables you to fit a joint Gaussian (and non-Gaussian) mixture on your data and then condition on a subset of variables to obtain the posterior distribution of the remaining ones.
 
@@ -18,8 +18,8 @@ pip install cgmm
 
 ## Requirements
 
-- Python 3.9-3.12
-- NumPy, SciPy, scikit‑learn (installed automatically)
+- Python 3.10-3.14
+- NumPy, SciPy, scikit-learn (installed automatically)
 - For the example plots: Matplotlib
 
 
@@ -62,7 +62,7 @@ print(f"Uncertainty: {np.sqrt(y_cov[0, 0, 0]):.3f}")
 pip install cgmm
 ```
 
-**Requirements**: Python 3.9+, NumPy, SciPy, scikit-learn
+**Requirements**: Python 3.10+, NumPy, SciPy, scikit-learn
 
 ## Use Cases
 

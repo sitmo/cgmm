@@ -1,9 +1,11 @@
 # cgmm
 
 [![PyPI version](https://img.shields.io/pypi/v/cgmm.svg)](https://pypi.org/project/cgmm/)
-[![Documentation Status](https://readthedocs.org/projects/cgmm/badge/?version=latest)](https://cgmm.readthedocs.io/en/latest/?badge=latest)
-![Tests](https://github.com/sitmo/cgmm/actions/workflows/tests.yml/badge.svg)
+[![Python versions](https://img.shields.io/pypi/pyversions/cgmm.svg)](https://pypi.org/project/cgmm/)
+[![License](https://img.shields.io/pypi/l/cgmm.svg)](https://github.com/sitmo/cgmm/blob/main/LICENSE)
+[![Tests](https://github.com/sitmo/cgmm/actions/workflows/tests.yml/badge.svg)](https://github.com/sitmo/cgmm/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/sitmo/cgmm/branch/main/graph/badge.svg)](https://codecov.io/gh/sitmo/cgmm)
+[![Documentation Status](https://readthedocs.org/projects/cgmm/badge/?version=latest)](https://cgmm.readthedocs.io/en/latest/?badge=latest)
 
 
 **cgmm** provides **Conditional Gaussian Mixture Models** that are fully compatible with scikit-learn.
