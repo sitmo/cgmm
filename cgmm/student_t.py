@@ -124,11 +124,12 @@ class StudentTMixture(BaseMixture):
         self.dof = dof
 
     # ------------------------------------------------------------------ init
-    def _check_parameters(self, X):
+    def _check_parameters(self, X, **kwargs):
         # Scalar parameter ranges are validated via _parameter_constraints.
+        # **kwargs absorbs the array-namespace `xp` passed by scikit-learn >= 1.9.
         pass
 
-    def _initialize_parameters(self, X, random_state):
+    def _initialize_parameters(self, X, random_state, **kwargs):
         if self.init_params == "gmm":
             gmm = GaussianMixture(
                 n_components=self.n_components,
@@ -138,7 +139,7 @@ class StudentTMixture(BaseMixture):
             ).fit(X)
             self._initialize(X, gmm.predict_proba(X))
         else:
-            super()._initialize_parameters(X, random_state)
+            super()._initialize_parameters(X, random_state, **kwargs)
 
     def _initialize(self, X, resp):
         n, p = X.shape
@@ -181,7 +182,7 @@ class StudentTMixture(BaseMixture):
             delta[:, k] = np.sum(u * u, axis=0)
         return delta
 
-    def _estimate_log_prob(self, X):
+    def _estimate_log_prob(self, X, **kwargs):
         n, p = X.shape
         nu = self.dofs_  # (K,)
         delta = self._mahalanobis(X)  # (n, K)
@@ -195,14 +196,14 @@ class StudentTMixture(BaseMixture):
             delta / nu[None, :]
         )
 
-    def _estimate_log_weights(self):
+    def _estimate_log_weights(self, **kwargs):
         return np.log(self.weights_)
 
     def _compute_lower_bound(self, log_resp, log_prob_norm):
         return log_prob_norm
 
     # ------------------------------------------------------------------ M-step
-    def _m_step(self, X, log_resp):
+    def _m_step(self, X, log_resp, **kwargs):
         n, p = X.shape
         K = self.n_components
         resp = np.exp(log_resp)  # tau_ik, (n, K)
@@ -254,7 +255,7 @@ class StudentTMixture(BaseMixture):
             self._scale_chol_,
         )
 
-    def _set_parameters(self, params):
+    def _set_parameters(self, params, **kwargs):
         (
             self.weights_,
             self.locations_,

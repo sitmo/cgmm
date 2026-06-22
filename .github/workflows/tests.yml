@@ -22,16 +22,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Poetry
-        uses: abatilo/actions-poetry@v3
-        with:
-          poetry-version: "1.8.3"
-      - name: Configure Poetry
-        run: poetry config virtualenvs.create true
-      - name: Install deps
-        run: poetry install --with dev
+          allow-prereleases: true
+      # Install with pip (not the Poetry lock) so each Python version resolves
+      # its own compatible numpy/scipy/scikit-learn wheels. A single universal
+      # poetry.lock pins one version set that cannot provide wheels across the
+      # whole 3.10-3.14 range (e.g. scipy with cp314 wheels requires >=3.11).
+      - name: Install package and test tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-cov coverage
       - name: Run tests with coverage
-        run: poetry run pytest --cov=cgmm --cov-report=xml --cov-report=term-missing
+        run: pytest --cov=cgmm --cov-report=xml --cov-report=term-missing
         env:
           PYTHONHASHSEED: "0"
       - name: Upload coverage to Codecov
