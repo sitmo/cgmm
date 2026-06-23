@@ -151,11 +151,15 @@ BSD 3-Clause License - see [LICENSE](https://github.com/sitmo/cgmm/blob/main/LIC
 ---
 
 ```{toctree}
-:maxdepth: 2
 :hidden:
 
-api
-conventions
+Home <self>
+```
+
+```{toctree}
+:hidden:
+:caption: Examples
+
 examples/heavy_tailed_regression
 examples/conditional_2d_gmm
 examples/digits_conditional_modeling
@@ -163,3 +167,13 @@ examples/iris_conditional_gmm
 examples/regression_models_and_datasets
 examples/vix_predictor
 examples/amsterdam_weather_analysis_knmi
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 2
+:caption: Reference
+
+api
+conventions
+```
